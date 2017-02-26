@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script type="text/javascript" src="smoothie.js"></script>
+    <script type="text/javascript" src="input.js"></script>
+    <script type="text/javascript" src="output.js"></script>
+    <script type="text/javascript" src="main.js?v=$Version"></script>
+    <script type="text/javascript">
+        function loaded() {
+            let socket = new WebSocket("ws://$Host");
+            main(socket);
+        }
+    </script>
+</head>
+<body onload="loaded()">
+    <div id="status" style="position: fixed; top: 0px; left: 0px; color: aqua; z-index: 1"></div>
+    <canvas id="chart" style="position: fixed; top: 0px; left: 0px; z-index: 0"></canvas>
+</body>
+</html>
