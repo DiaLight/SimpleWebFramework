@@ -103,7 +103,7 @@ namespace sha1 {
         }
     } // namespace
 
-    void calc(const void *src, const int bytelength, unsigned char *hash) {
+    void calc(const void *src, int bytelength, unsigned char *hash) {
         // Init the result array.
         unsigned int result[5] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0};
 

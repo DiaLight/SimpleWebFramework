@@ -15,7 +15,7 @@ namespace ws {
         if(data != nullptr) delete[] data;
     }
 
-    void Packet::build(uint64_t len) {
+    void Packet::build(uint64_t len, uint8_t flags, uint8_t opcodes) {
         if (len < 126) {
             size = 2 + len;
             data = new uint8_t[size];
@@ -42,7 +42,7 @@ namespace ws {
             data[8] = (uint8_t) (len >> 8);
             data[9] = (uint8_t) len;
         }
-        data[0] = ws::DEFAULT;
+        data[0] = flags | opcodes;
     }
 
     void Packet::write(void *buf, uint64_t offset, uint64_t len) {
@@ -54,10 +54,10 @@ namespace ws {
     }
 
     void Packet::setFlags(uint8_t flags) {
-        data[0] = data[0] & OPCODE_MASK | flags & FLAGS_MASK;
+        data[0] = data[0] & opcode::MASK | flags & flag::MASK;
     }
 
     void Packet::setOpcode(uint8_t opcode) {
-        data[0] = data[0] & FLAGS_MASK | opcode & OPCODE_MASK;
+        data[0] = data[0] & flag::MASK | opcode & opcode::MASK;
     }
 }

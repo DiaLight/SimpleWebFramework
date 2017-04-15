@@ -47,7 +47,8 @@ function main(socket) {
 
     let status = document.getElementById("status");
 
-    socket.binaryType = 'arraybuffer';
+    // socket.binaryType = 'arraybuffer';
+    // socket.binaryType = 'blob';
     socket.onopen = function() {
         status.innerHTML = "Соединение установлено.";
     };
@@ -61,8 +62,11 @@ function main(socket) {
     };
 
     socket.onmessage = function(event) {
-        let dis = new DataInputStream(event.data);
-        let val = dis.readInt() / 65535.0;
+        // let dis = new DataInputStream(event.data);
+        // let val = dis.readInt() / 65535.0;
+        let object = JSON.parse(event.data);
+        let val = object.val / 65535.0;
+
         let time = new Date().getTime();
         series.append(time, val);
     };

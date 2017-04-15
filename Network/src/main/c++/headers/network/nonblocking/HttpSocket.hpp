@@ -10,37 +10,23 @@
 #include <network/protocol/HTTP.hpp>
 #include <network/TcpSocket.hpp>
 #include <network/io/base/ByteArrayOutputStream.hpp>
+#include <fstream>
 
 #define MAX_BUF_SIZE 1024
+
+char *readFile(std::string const &path, uint64_t *length);
 
 class HttpSocket;
 typedef bool(*HttpPacketHandler)(HttpSocket *httpSocket, http::head &head, std::map<std::string, std::string> &props);
 
-
-class HttpHandler {
+typedef struct _HttpHandler {
     std::map<std::string, HttpPacketHandler> httpHandlers;
     std::string root = "";
-public:
-    HttpHandler();
-
-    HttpHandler(const HttpHandler&) = delete; //deleted copy constructor
-    HttpHandler& operator=(const HttpHandler &) = delete; //deleted copy assignment operator
     HttpPacketHandler notFound = nullptr;
-
-    void setContentRoot(std::string const &root) {
-        if(root[root.size() - 1] == '/') {
-            this->root = root;
-        } else {
-            this->root = root + '/';
-        }
-    }
-
-    void onGet(std::string path, HttpPacketHandler p);
 
     void handleHttp(HttpSocket *httpSocket, http::head &head, std::map<std::string, std::string> &props);
 
-    static char *readFile(std::string const &path, uint64_t *length);
-};
+} HttpHandler;
 
 class HttpSocket {
     HttpHandler *httpHandler;
@@ -62,7 +48,7 @@ public:
     bool isOpen();
     void close();
 
-    void sendContent(ByteArrayOutputStream *baos);
+    void sendContent(ByteArrayOutputStream *baos, std::string const &type);
     void sendContent(std::string const &content);
 
     void sendNotFound(std::string const &content);

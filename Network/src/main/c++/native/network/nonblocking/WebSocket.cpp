@@ -6,51 +6,13 @@
 
 #include <network/io/base/ByteArrayInputStream.hpp>
 #include <network/protocol/WS.hpp>
+#include <WebSocketServer.hpp>
 
 using namespace std;
 
-void WebSocketHandler::onWsOpen(WebSocketListener listener) {
-    onOpenListeners.push_back(listener);
-}
 
-void WebSocketHandler::onWsMessage(WebSocketMessageListener listener) {
-    onMessageListeners.push_back(listener);
-}
-
-void WebSocketHandler::onWsClose(WebSocketCloseListener listener) {
-    onCloseListeners.push_back(listener);
-}
-
-void WebSocketHandler::onWsError(WebSocketErrorListener listener) {
-    onErrorListeners.push_back(listener);
-}
-
-void WebSocketHandler::fireOpen(WebSocket *webSocket) {
-    for(auto const &listener : onOpenListeners) {
-        listener(webSocket);
-    }
-}
-
-void WebSocketHandler::fireMessage(WebSocket *webSocket, InputStream *message) {
-    for(auto const &listener : onMessageListeners) {
-        listener(webSocket, message);
-    }
-}
-
-void WebSocketHandler::fireClose(WebSocket *webSocket, int code, string const &reason) {
-    for(auto const &listener : onCloseListeners) {
-        listener(webSocket, code, reason);
-    }
-}
-
-void WebSocketHandler::fireError(WebSocket *webSocket, IOException &e) {
-    for(auto const &listener : onErrorListeners) {
-        listener(webSocket, e);
-    }
-}
-
-WebSocket::WebSocket(TcpSocket *socket, WebSocketHandler *wsHandler) : socket(socket), wsHandler(wsHandler) {
-    wsHandler->fireOpen(this);
+WebSocket::WebSocket(TcpSocket *socket, WebSocketHandlers *handlers) : socket(socket), handlers(handlers) {
+    handlers->fireOpen(this);
 }
 
 WebSocket::~WebSocket() {
@@ -65,8 +27,8 @@ void WebSocket::tick() {
     
     s = is->read(&tmp, 0, 1);
     if (s == 0) return;
-    int flags = tmp & ws::FLAGS_MASK;
-    int opcode = tmp & ws::OPCODE_MASK;
+    int flags = tmp & ws::flag::MASK;
+    int opcode = tmp & ws::opcode::MASK;
     
     s = is->read(&tmp, 0, 1);
     if (s == 0) return;
@@ -111,29 +73,22 @@ void WebSocket::tick() {
     }
     unMaskedData[len] = '\0';
 
-    if(opcode == ws::CLOSE) {
+    if(opcode == ws::opcode::CLOSE) {
         opened = false;
         if(len < 2) {
-            wsHandler->fireClose(this, ws::NORMAL, "");
+            handlers->fireClose(this, ws::NORMAL, "");
         } else {
             int code = unMaskedData[0] * 256 + unMaskedData[1];
             if(len == 2) {
-                wsHandler->fireClose(this, code, "");
+                handlers->fireClose(this, code, "");
             } else {
-                wsHandler->fireClose(this, code, string(((char *) unMaskedData) + 2, len - 2));
+                handlers->fireClose(this, code, string(((char *) unMaskedData) + 2, len - 2));
             }
         }
     } else {
         ByteArrayInputStream bais(unMaskedData, len);
-        wsHandler->fireMessage(this, &bais);
+        handlers->fireMessage(this, &bais);
     }
-}
-
-void WebSocket::sendMessage(ByteArrayOutputStream &baos) {
-    ws::Packet p;
-    p.build(baos.size());
-    p.write(baos.getBuffer(), 0, baos.size());
-    p.send(socket->getOutputStream());
 }
 
 TcpSocket *WebSocket::tcp() {
@@ -151,10 +106,23 @@ void WebSocket::close(int code, string const &reason) {
     codeBuf[1] = (uint8_t) code;
 
     ws::Packet p;
-    p.build(2 + reason.size());
-    p.setOpcode(ws::CLOSE);
+    p.build(2 + reason.size(), ws::flag::FIN, ws::opcode::CLOSE);
     p.write(codeBuf, 0, 2);
     p.write((void *) reason.c_str(), 2, reason.size());
     p.send(socket->getOutputStream());
-    wsHandler->fireClose(this, code, reason);
+    handlers->fireClose(this, code, reason);
+}
+
+void WebSocket::sendRaw(ByteArrayOutputStream &baos) {
+    ws::Packet p;
+    p.build(baos.size(), ws::flag::FIN, ws::opcode::BIN);
+    p.write(baos.getBuffer(), 0, baos.size());
+    p.send(socket->getOutputStream());
+}
+
+void WebSocket::sendJson(std::string const &str) {
+    ws::Packet p;
+    p.build(str.size(), ws::flag::FIN, ws::opcode::TXT);
+    p.write((void *) str.c_str(), 0, str.size());
+    p.send(socket->getOutputStream());
 }

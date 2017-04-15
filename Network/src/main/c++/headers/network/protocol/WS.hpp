@@ -11,31 +11,35 @@
 namespace ws {
 
     // Flags
-    static uint8_t FIN =  0b10000000;
-    static uint8_t RSV1 = 0b01000000;
-    static uint8_t RSV2 = 0b00100000;
-    static uint8_t RSV3 = 0b00010000;
-    static uint8_t FLAGS_MASK = 0b11110000;
+    namespace flag {
+        static uint8_t FIN =  0b10000000;
+        static uint8_t RSV1 = 0b01000000;
+        static uint8_t RSV2 = 0b00100000;
+        static uint8_t RSV3 = 0b00010000;
+        static uint8_t MASK = 0b11110000;
+    }
 
     // Opcodes
-    static uint8_t TXT =  0x1;
-    static uint8_t BIN =  0x2;
+    namespace opcode {
+        static uint8_t TXT =  0x1;
+        static uint8_t BIN =  0x2;
 //    static uint8_t RES1 =  0x3;
 //    static uint8_t RES2 =  0x4;
 //    static uint8_t RES3 =  0x5;
 //    static uint8_t RES4 =  0x6;
 //    static uint8_t RES5 =  0x7;
-    static uint8_t CLOSE = 0x8;
-    static uint8_t PING =  0x9;
-    static uint8_t PONG =  0xA;
+        static uint8_t CLOSE = 0x8;
+        static uint8_t PING =  0x9;
+        static uint8_t PONG =  0xA;
 //    static uint8_t RES6 =  0xB;
 //    static uint8_t RES7 =  0xC;
 //    static uint8_t RES8 =  0xD;
 //    static uint8_t RES9 =  0xE;
 //    static uint8_t RES10 = 0xF;
-    static uint8_t OPCODE_MASK = 0b00001111;
+        static uint8_t MASK = 0b00001111;
+    }
 
-    static uint8_t DEFAULT = FIN | BIN;
+    static uint8_t DEFAULT = flag::FIN | opcode::BIN;
 
     // second byte
     static uint8_t MASK = 0b10000000;
@@ -56,7 +60,7 @@ namespace ws {
 
         virtual ~Packet();
 
-        void build(uint64_t len);
+        void build(uint64_t len, uint8_t flags, uint8_t opcodes);
 
         void write(void *buf, uint64_t offset, uint64_t len);
 

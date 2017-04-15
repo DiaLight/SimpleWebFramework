@@ -7,54 +7,9 @@
 #include <network/crypto/sha1.hpp>
 #include <iostream>
 #include <sstream>
-#include <fstream>
+#include <sys/stat.h>
 
 using namespace std;
-
-HttpHandler::HttpHandler() {}
-
-void HttpHandler::onGet(string path, HttpPacketHandler p) {
-    httpHandlers.insert(pair<string, HttpPacketHandler>(path, p));
-}
-
-char *HttpHandler::readFile(string const &path, uint64_t *length) {
-    ifstream ifs(path, ios::binary | ios::ate);
-    if(!ifs.is_open()) return nullptr;
-
-    ifstream::pos_type pos = ifs.tellg();
-
-    char *buf = new char[pos];
-    ifs.seekg(0, ios::beg);
-    ifs.read(buf, pos);
-
-    ifs.close();
-    *length = (uint64_t) pos;
-    return buf;
-}
-
-void HttpHandler::handleHttp(HttpSocket *httpSocket, http::head &head, map<string, string> &props) {
-    auto entry = httpHandlers.find(head.path);
-    if(entry != httpHandlers.end()) {
-        if(entry->second(httpSocket, head, props)) return;
-    }
-    uint64_t length = 0;
-    string path = head.path[0] == '/' ? root + "." + head.path : root + head.path;
-    size_t pos = path.find('?');
-    if(pos != std::string::npos) {
-        path = path.substr(0, pos);
-    }
-    char *buf = readFile(path, &length);
-    if(buf != nullptr) {
-        ByteArrayOutputStream baos(buf, length);
-        httpSocket->sendContent(&baos);
-        return;
-    }
-
-    if(notFound == nullptr || !notFound(httpSocket, head, props)) {
-        httpSocket->sendNotFound(head.path);
-    }
-}
-
 
 HttpSocket::HttpSocket(TcpSocket *socket, HttpHandler *httpHandler) : socket(socket), httpHandler(httpHandler) {}
 
@@ -81,6 +36,12 @@ void HttpSocket::tick() {
         return;
     }
 
+//    cout << socket->getAddressString() << endl;
+//    for(auto const &e : props) {
+//        cout << e.first << ": " << e.second << endl;
+//    }
+//    cout << endl;
+
     if (props["Connection"].find("Upgrade") != string::npos && props["Upgrade"] == "websocket") {
         //handshake
 
@@ -99,9 +60,9 @@ void HttpSocket::tick() {
                 "HTTP/1.1 101 Switching Protocols\r\n"
                 "Upgrade: websocket\r\n"
                 "Connection: Upgrade\r\n"
-//                        "Sec-WebSocket-Protocol: " << props["Sec-WebSocket-Protocol"] << "\r\n"
+//                "Sec-WebSocket-Protocol: " << props["Sec-WebSocket-Protocol"] << "\r\n"
                 "Sec-WebSocket-Accept: " << base64::encode(hash, 20) << "\r\n"
-                         "\r\n";
+                "\r\n";
         os->writeRawString(response.str());
         upgrade = true;
     } else {
@@ -110,13 +71,13 @@ void HttpSocket::tick() {
     }
 }
 
-void HttpSocket::sendContent(ByteArrayOutputStream *baos) {
+void HttpSocket::sendContent(ByteArrayOutputStream *baos, string const &type) {
     OutputStream *os = socket->getOutputStream();
     stringstream response;
     response << ""
             "HTTP/1.1 200 OK\r\n"
             "Version: HTTP/1.1\r\n"
-            "Content-Type: text/html; charset=utf-8\r\n"
+            "Content-Type: " << type << "; charset=utf-8\r\n"
             "Content-Length: " << baos->size() << "\r\n"
             "\r\n";
     os->writeRawString(response.str());
@@ -163,4 +124,65 @@ bool HttpSocket::isOpen() {
 
 void HttpSocket::close() {
     open = false;
+}
+
+bool hasEnding(string const &fullString, string const &ending) {
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    } else {
+        return false;
+    }
+}
+
+const char *getType(string const &path) {
+    if(hasEnding(path, ".css")) return "text/css";
+    if(hasEnding(path, ".js")) return "application/javascript";
+    if(hasEnding(path, ".html")) return "text/html";
+    return "text/plain";
+}
+
+void _HttpHandler::handleHttp(HttpSocket *httpSocket, http::head &head, std::map<std::string, std::string> &props) {
+    auto entry = httpHandlers.find(head.path);
+    if(entry != httpHandlers.end()) {
+        if(entry->second(httpSocket, head, props)) return;
+    }
+    uint64_t length = 0;
+    string path = head.path[0] == '/' ? root + "." + head.path : root + head.path;
+    size_t pos = path.find('?');
+    if(pos != string::npos) {
+        path = path.substr(0, pos);
+    }
+    char *buf = readFile(path, &length);
+    if(buf != nullptr) {
+        ByteArrayOutputStream baos(buf, length);
+        string type = getType(head.path);
+        httpSocket->sendContent(&baos, type);
+        return;
+    }
+
+    if(notFound == nullptr || !notFound(httpSocket, head, props)) {
+        httpSocket->sendNotFound(head.path);
+    }
+}
+
+bool is_regular_file(const char *path) {
+    struct stat path_stat;
+    stat(path, &path_stat);
+    return S_ISREG(path_stat.st_mode);
+}
+
+char *readFile(std::string const &path, uint64_t *length) {
+    if(!is_regular_file(path.c_str())) return nullptr;
+    std::ifstream ifs(path, std::ios::binary | std::ios::ate);
+    if(!ifs.is_open()) return nullptr;
+
+    std::ifstream::pos_type pos = ifs.tellg();
+
+    char *buf = new char[pos];
+    ifs.seekg(0, std::ios::beg);
+    ifs.read(buf, pos);
+
+    ifs.close();
+    *length = (uint64_t) pos;
+    return buf;
 }

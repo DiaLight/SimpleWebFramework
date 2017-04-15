@@ -18,38 +18,37 @@ typedef void (*WebSocketMessageListener)(WebSocket *, InputStream *);
 typedef void (*WebSocketCloseListener)(WebSocket *, int code, std::string reason);
 typedef void (*WebSocketErrorListener)(WebSocket *, IOException &e);
 
-class WebSocketHandler {
+typedef struct _WebSocketHandlers {
     std::vector<WebSocketListener> onOpenListeners;
     std::vector<WebSocketMessageListener> onMessageListeners;
     std::vector<WebSocketCloseListener> onCloseListeners;
     std::vector<WebSocketErrorListener> onErrorListeners;
 
-public:
-    void onWsOpen(WebSocketListener listener);
+    void fireOpen(WebSocket *webSocket) {
+        for(auto const &listener : onOpenListeners) listener(webSocket);
+    }
 
-    void onWsMessage(WebSocketMessageListener listener);
+    void fireMessage(WebSocket *webSocket, InputStream *message) {
+        for(auto const &listener : onMessageListeners) listener(webSocket, message);
+    }
 
-    void onWsClose(WebSocketCloseListener listener);
+    void fireClose(WebSocket *webSocket, int code, std::string const &reason) {
+        for(auto const &listener : onCloseListeners) listener(webSocket, code, reason);
+    }
 
-    void onWsError(WebSocketErrorListener listener);
+    void fireError(WebSocket *webSocket, IOException &e) {
+        for(auto const &listener : onErrorListeners) listener(webSocket, e);
+    }
 
-    void fireOpen(WebSocket *webSocket);
-
-    void fireMessage(WebSocket *webSocket, InputStream *message);
-
-    void fireClose(WebSocket *webSocket, int code, std::string const &reason);
-
-    void fireError(WebSocket *webSocket, IOException &e);
-};
+} WebSocketHandlers;
 
 class WebSocket {
 
     TcpSocket *socket;
-    unsigned long lastLen;
     bool opened = true;
-    WebSocketHandler *wsHandler;
+    WebSocketHandlers *handlers;
 public:
-    WebSocket(TcpSocket *socket, WebSocketHandler *wsHandler);
+    WebSocket(TcpSocket *socket, WebSocketHandlers *handlers);
 
     virtual ~WebSocket();
 
@@ -61,7 +60,9 @@ public:
 
     void close(int code, std::string const &reason);
 
-    void sendMessage(ByteArrayOutputStream &baos);
+    void sendJson(std::string const &str);
+
+    void sendRaw(ByteArrayOutputStream &baos);
 
 };
 
