@@ -17,6 +17,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <vector>
+#include <functional>
 
 class App;
 extern App app;

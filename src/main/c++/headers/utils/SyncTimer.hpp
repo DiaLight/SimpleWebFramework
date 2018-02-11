@@ -6,6 +6,7 @@
 #define SOCKET_WEBSERVER_TIMER_HPP
 
 #include <ctime>
+#include <functional>
 
 class SyncTimer {
     std::clock_t delay;

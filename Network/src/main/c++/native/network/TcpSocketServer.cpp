@@ -31,7 +31,7 @@ void TcpSocketServer::bind(int port) {
     struct sockaddr_in addr;
     socklen_t addrLen = sizeof (addr);
     memset(&addr, 0, addrLen);
-    addr.sin_family = AF_UNSPEC;
+    addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons((uint16_t) port);
 

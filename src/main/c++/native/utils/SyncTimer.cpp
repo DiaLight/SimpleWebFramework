@@ -2,12 +2,11 @@
 // Created by dialight on 24.02.17.
 //
 
-#include <functional>
-#include "utils/SyncTimer.hpp"
+#include <utils/SyncTimer.hpp>
 
 using namespace std;
 
-SyncTimer::SyncTimer(long delay, function<void ()> const &run) :
+SyncTimer::SyncTimer(clock_t delay, function<void ()> const &run) :
         delay(delay),
         prev(clock()),
         runnable(run) {}
